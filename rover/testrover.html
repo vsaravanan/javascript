@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+canvas {
+    border:1px solid #d3d3d3;
+    background-color: #f1f1f1;
+}
+</style>
+</head>
+<body onload="startGame()">
+<script>
+
+// class Direction
+function Direction(direction, image, left, right) {
+    this.direction = direction;
+    this.image = image;
+    this.left = left;
+    this.right = right;
+
+    this.print = function() {
+        return this.direction + ' ' + this.left +  ' ' + this.right;
+    }; 
+
+    this.LR = function(LR)  {
+        if (LR === 'Left')
+            return this.left;
+        if (LR === 'Right')
+            return this.right;
+    } 
+}
+
+
+var myGamePiece;
+
+var roverUp = new Image(); 
+var roverRight = new Image(); 
+var roverDown = new Image(); 
+var roverLeft = new Image(); 
+
+var North = new Direction('North', roverUp, 'West', 'East');
+var East = new Direction('East', roverRight, 'North', 'South');
+var South = new Direction('South', roverDown, 'East', 'West');
+var West = new Direction('West', roverLeft, 'South', 'North');
+
+var getDirection = {
+    'North': North,
+    'East': East,
+    'South': South,
+    'West': West
+    } 
+
+function startGame() {
+
+    roverUp.src = "roverUp.png";
+    roverRight.src = "roverRight.png";
+    roverDown.src = "roverDown.png";
+    roverLeft.src = "roverLeft.png";
+
+    myGamePiece = new component(30, 30, 'North', 31, 120);
+    myGameArea.start();
+
+
+}
+
+
+var myGameArea = {
+    canvas : document.createElement("canvas"),
+    start : function() {
+        this.canvas.width = 480;
+        this.canvas.height = 270;
+        this.context = this.canvas.getContext("2d");
+
+        document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+        this.frameNo = 0;
+        this.interval = setInterval(updateGameArea, 20);
+        createEventListeners();
+        },
+    clear : function() {
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    },
+    stop : function() {
+        clearInterval(this.interval);
+    }
+}
+
+
+function createEventListeners()
+{
+        window.addEventListener('keydown', function (e) {
+            e.preventDefault();
+            myGameArea.keys = (myGameArea.keys || []);
+            myGameArea.keys[e.keyCode] = (e.type == "keydown");
+            if (myGameArea.keys && ( myGameArea.keys[37] || myGameArea.keys[76]) ) { moveleft(); showCommands('L') }
+            if (myGameArea.keys && ( myGameArea.keys[38] || myGameArea.keys[70]) ) { movefwd(); showCommands('F') }
+            if (myGameArea.keys && ( myGameArea.keys[39] || myGameArea.keys[82]) ) { moveright(); showCommands('R') }
+            if (myGameArea.keys && ( myGameArea.keys[40] || myGameArea.keys[66]) ) { moveback(); showCommands('B') }
+            
+        })
+        window.addEventListener('keyup', function (e) {
+            myGameArea.keys[e.keyCode] = (e.type == "keydown");            
+            clearmove();
+        })    
+}
+
+
+// Rover
+function component(width, height, way, x, y) {
+
+    // get 'North' string
+    this.way = way;
+
+    // get North object
+    var curDirection = getDirection[way];
+    this.direction = curDirection;       
+
+    this.image = curDirection.image;
+    this.image.src = curDirection.image.src;
+
+    this.width = width;
+    this.height = height;
+    this.speedX = 0;
+    this.speedY = 0;   
+    this.reverse = 1;
+ 
+    this.maxwidth = myGameArea.canvas.width;
+    this.maxheight = myGameArea.canvas.height;
+
+    this.x = x;
+    this.y = y; 
+
+
+
+    this.update = function() {
+        ctx = myGameArea.context;
+        ctx.save();
+
+        // obstacle
+        ctx.fillRect(200, 150, 60, 40);
+
+        ctx.translate(this.x, this.y);
+
+        ctx.drawImage(this.image, 
+            this.x, 
+            this.y,
+            this.width, this.height);
+
+        ctx.restore(); 
+
+	}
+
+    this.newPos = function() {
+
+        var newx = this.x + (this.speedX * this.reverse);
+        var newy = this.y + (this.speedY * this.reverse);
+
+        // to wrap at the edges
+        if ( (newx + this.width + 50) > this.maxwidth)
+            newx = 32;
+        else if (newx < this.width)
+            newx = this.maxwidth - this.width - 50;
+
+        var newy = this.y + (this.speedY * this.reverse);
+        if (newy < 0)
+            newy = this.maxheight - this.height;
+        else if ( (newy + this.height  ) > this.maxheight)
+            newy = 0 ;
+
+        //console.log('newx : ', newx, 'newy : ', newy);
+
+        //ctx.fillRect(200x, 150y, 60width, 40height);
+        //              85x, 60y, 130x, 95y
+
+        if (newx >= 85 && newx <= 130 && newy >= 60 && newy <= 95)
+        {
+            return false;
+        }
+        else
+        {
+            this.x = newx;
+            this.y = newy;
+            return true;
+        }
+
+    }
+
+    this.setNewDirection = function (LR)
+    {
+
+        this.way = this.direction.LR(LR);
+        this.direction = getDirection[this.way];
+        this.image = this.direction.image;
+
+
+    }
+
+    this.setDirectionPointer = function()
+    {
+        switch (this.way)
+        {
+            case 'North' :
+                this.speedY = -1;
+                break;
+            case 'South' :
+                this.speedY = 1;
+                break;
+            case 'East' :
+                this.speedX = 1;
+                break;
+            case 'West' :
+                this.speedX = -1;
+                break;
+        }
+
+    }
+
+}
+
+// invoked at frequent intervals
+function updateGameArea() {
+
+    myGameArea.clear();
+    //myGamePiece.speed = 0;
+    if (myGamePiece.newPos())
+        myGamePiece.update();
+    else
+        showCommands("HIT"); // hit with obstacle
+    clearmove();
+
+}
+
+
+
+
+function movefwd() {
+
+    myGamePiece.setDirectionPointer();    
+
+}
+
+function moveback() {
+    myGamePiece.reverse = -1;
+    myGamePiece.setDirectionPointer();    
+}
+
+function moveleft() {
+    myGamePiece.setNewDirection('Left');
+    myGamePiece.setDirectionPointer();    
+
+}
+
+function moveright() {
+    myGamePiece.setNewDirection('Right');
+    myGamePiece.setDirectionPointer();    
+}
+
+function clearmove() {
+    myGamePiece.speedX = 0; 
+    myGamePiece.speedY = 0; 
+    myGamePiece.reverse = 1;
+}
+
+function showCommands(key)
+{
+    document.getElementById('commands').innerHTML += key;
+}
+
+</script>
+<div style="text-align:center;width:480px;">
+  <button onmousedown="movefwd()" onmouseup="clearmove()" ontouchstart="movefwd()">F or Up</button><br><br>
+  <button onmousedown="moveleft()" onmouseup="clearmove()" ontouchstart="moveleft()">L or Left</button>
+  <button onmousedown="moveright()" onmouseup="clearmove()" ontouchstart="moveright()">R or Right</button><br><br>
+  <button onmousedown="moveback()" onmouseup="clearmove()" ontouchstart="moveback()">B or Down</button>
+</div>
+<div id="commands"  style='padding: 3px; width: 40%; word-break: break-all; word-wrap: break-word;' >
+    
+</div>
+
+
+</body>
+</html>
